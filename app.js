@@ -1,4 +1,5 @@
 const STORAGE_KEY = "tnwk-sending-plan-v1";
+const ROLE_KEY = "tnwk-preview-role-v1";
 
 const phases = [
   {
@@ -9,12 +10,14 @@ const phases = [
     steps: [
       {
         id: "purpose",
+        lead: "together",
         title: "Confirm calling and shared purpose",
         description: "Write down the proposed work, why this church is sending, and what a faithful first term would look like.",
         prompt: "What is the missionary being sent to do, and how will the church discern and affirm that calling?",
       },
       {
         id: "authority",
+        lead: "church",
         title: "Agree on church ownership and decisions",
         description: "Name the leaders who will make decisions, the missionary's role, and the way disagreements will be handled.",
         prompt: "Who can approve a plan, change it, and speak for the church when questions arise?",
@@ -29,12 +32,14 @@ const phases = [
     steps: [
       {
         id: "needs",
+        lead: "missionary",
         title: "Research local needs and relationships",
         description: "Record what local leaders say is needed, existing work in the area, and sources that support the plan.",
         prompt: "Whose perspective from the destination has shaped this plan? What still needs to be learned?",
       },
       {
         id: "permissions",
+        lead: "together",
         title: "Review destination permissions and safety",
         description: "Check current entry rules, permitted activities, travel guidance, and emergency considerations for the destination.",
         prompt: "Who will verify immigration, local law, and safety details before any departure decision?",
@@ -50,12 +55,14 @@ const phases = [
     steps: [
       {
         id: "team",
+        lead: "church",
         title: "Name the sending and care team",
         description: "Assign a church leader, care contact, and practical coordinator with a clear way to reach the missionary.",
         prompt: "Who owns the relationship once the missionary leaves, and how will that person stay in touch?",
       },
       {
         id: "training",
+        lead: "missionary",
         title: "Set a preparation path",
         description: "List the language, cultural, ministry, safeguarding, and practical preparation this assignment requires.",
         prompt: "What preparation is essential before departure, and who will help provide or assess it?",
@@ -70,12 +77,14 @@ const phases = [
     steps: [
       {
         id: "budget",
+        lead: "together",
         title: "Draft a sourced field budget",
         description: "Add recurring and setup expenses, including insurance, travel, transfer costs, and a contingency where relevant.",
         prompt: "Which costs are backed by current quotes, and which are still estimates?",
       },
       {
         id: "money",
+        lead: "church",
         title: "Decide how money will be governed",
         description: "Document approval, records, reporting, and the people who will obtain qualified tax and legal review.",
         prompt: "How will the church receive, approve, record, review, and report support? Which decisions need professional advice?",
@@ -91,12 +100,14 @@ const phases = [
     steps: [
       {
         id: "practical",
+        lead: "missionary",
         title: "Confirm practical readiness",
         description: "Check travel documents, housing, insurance, emergency contacts, health needs, and a response plan.",
         prompt: "What must be confirmed before travel is booked or announced?",
       },
       {
         id: "approval",
+        lead: "church",
         title: "Review and approve the sending plan",
         description: "Bring unresolved questions, the budget, and the care plan to the church's decision makers.",
         prompt: "Who must review the complete plan, and where will their decision be recorded?",
@@ -112,12 +123,14 @@ const phases = [
     steps: [
       {
         id: "communication",
+        lead: "together",
         title: "Schedule communication and care",
         description: "Agree on check-ins, pastoral care, sensitive information boundaries, and a way to request help.",
         prompt: "What will the church ask, listen for, and share at each check-in?",
       },
       {
         id: "review",
+        lead: "together",
         title: "Set recurring plan reviews",
         description: "Decide when to revisit the budget, ministry goals, health, and next-term plans together.",
         prompt: "How often will the church and missionary review what is working and what needs to change?",
@@ -135,6 +148,7 @@ function freshState() {
     updatedAt: new Date().toISOString(),
     profile: { church: "", missionary: "", destination: "", purpose: "", departure: "" },
     steps: {},
+    missionaryUpdates: {},
     budget: [
       { id: "housing", label: "Housing & utilities", cadence: "monthly", amount: 0, source: "", checkedOn: "" },
       { id: "living", label: "Food & daily living", cadence: "monthly", amount: 0, source: "", checkedOn: "" },
@@ -156,6 +170,7 @@ function normalizeState(saved) {
     ...saved,
     profile: { ...base.profile, ...saved.profile },
     steps: saved.steps && typeof saved.steps === "object" ? saved.steps : {},
+    missionaryUpdates: saved.missionaryUpdates && typeof saved.missionaryUpdates === "object" && !Array.isArray(saved.missionaryUpdates) ? saved.missionaryUpdates : {},
     budget: saved.budget,
     stewardship: { ...base.stewardship, ...(saved.stewardship || {}) },
     research: saved.research,
@@ -171,9 +186,16 @@ function loadState() {
 }
 
 let state = loadState();
-let currentView = ["overview", "plan", "budget", "stewardship", "research"].includes(location.hash.slice(1))
-  ? location.hash.slice(1)
-  : "overview";
+let currentRole = (() => {
+  try { return localStorage.getItem(ROLE_KEY) === "missionary" ? "missionary" : "church"; }
+  catch { return "church"; }
+})();
+const initialView = location.hash.slice(1);
+if (["missionary", "preparation"].includes(initialView)) currentRole = "missionary";
+if (["overview", "plan", "stewardship"].includes(initialView)) currentRole = "church";
+let currentView = ["overview", "plan", "budget", "stewardship", "research", "missionary", "preparation"].includes(initialView)
+  ? initialView
+  : currentRole === "church" ? "overview" : "missionary";
 let toastTimer;
 
 const root = document.getElementById("view-root");
@@ -216,7 +238,24 @@ function toast(message) {
 }
 
 function getStep(id) {
-  return { status: "not-started", owner: "", next: "", notes: "", ...(state.steps[id] || {}) };
+  const saved = state.steps[id] || {};
+  return {
+    status: "not-started", owner: "", next: "", notes: "",
+    ...saved,
+    lead: ["church", "missionary", "together"].includes(saved.lead) ? saved.lead : (stepById[id]?.lead || "together"),
+  };
+}
+
+function getMissionaryUpdate(id) {
+  return { update: "", request: "", ...(state.missionaryUpdates[id] || {}) };
+}
+
+function missionarySteps() {
+  return allSteps.filter((step) => getStep(step.id).lead !== "church");
+}
+
+function missionaryRequests() {
+  return allSteps.filter((step) => String(getMissionaryUpdate(step.id).request).trim());
 }
 
 function counts() {
@@ -269,6 +308,7 @@ function renderOverview() {
   const { done, review, total } = counts();
   const budget = budgetTotals();
   const next = allSteps.filter((step) => getStep(step.id).status !== "done").slice(0, 3);
+  const requests = missionaryRequests();
   const greeting = state.profile.church ? esc(state.profile.church) : "your church";
   return `<div class="page">
     <section class="hero">
@@ -297,6 +337,9 @@ function renderOverview() {
       </div>
       <div class="next-panel"><div class="eyebrow">NEXT CONVERSATIONS</div><h2>What to settle next</h2><div class="next-list">${next.length ? next.map((step, index) => `<button class="next-item" type="button" data-go="plan"><span>${String(index + 1).padStart(2, "0")}</span><div><strong>${step.title}</strong><small>${getStep(step.id).owner ? `Owner: ${esc(getStep(step.id).owner)}` : "Assign an owner in the plan"}</small></div><span aria-hidden="true">↗</span></button>`).join("") : `<p>All roadmap steps are marked complete. Review the plan with your church's leaders.</p>`}</div></div>
     </section>
+    <section class="card"><div class="section-header"><div><div class="eyebrow">FROM THE MISSIONARY SIDE</div><h2>Questions for the church</h2></div><span class="small-note">${requests.length} recorded</span></div>
+      ${requests.length ? `<div class="request-list">${requests.map((step) => `<div class="request-item"><strong>${esc(step.title)}</strong><p>${esc(getMissionaryUpdate(step.id).request)}</p></div>`).join("")}</div>` : `<p class="muted-copy">No questions have been recorded in the missionary view yet. Switch views above to explore that side of the plan.</p>`}
+    </section>
     <div class="info-banner"><span class="info-mark">i</span><div><strong>A working draft for real conversations</strong><p>This prototype saves only in this browser. It does not invite collaborators, move money, verify compliance, or replace church leadership and professional review.</p></div></div>
   </div>`;
 }
@@ -315,15 +358,17 @@ function renderProfile() {
 
 function renderStep(step, number) {
   const saved = getStep(step.id);
+  const missionary = getMissionaryUpdate(step.id);
   const statusNames = { "not-started": "Not started", "in-progress": "In progress", "needs-review": "Needs review", done: "Complete" };
   return `<details class="step-card ${saved.status === "done" ? "is-done" : ""}" id="step-${step.id}">
-    <summary class="step-summary"><span class="step-check" aria-hidden="true">${saved.status === "done" ? "✓" : number}</span><span class="step-main"><strong class="step-title">${step.title}</strong><span class="step-description">${step.description}</span><span class="step-meta">${saved.owner ? `Owner: ${esc(saved.owner)}` : "No owner yet"} · ${statusNames[saved.status]}</span></span>${step.review ? `<span class="badge badge-review">Qualified review</span>` : ""}<span class="chevron" aria-hidden="true">⌄</span></summary>
+    <summary class="step-summary"><span class="step-check" aria-hidden="true">${saved.status === "done" ? "✓" : number}</span><span class="step-main"><strong class="step-title">${step.title}</strong><span class="step-description">${step.description}</span><span class="step-meta">${saved.owner ? `Owner: ${esc(saved.owner)}` : "No owner yet"} · ${statusNames[saved.status]} · ${saved.lead === "together" ? "Led together" : `${saved.lead === "church" ? "Church" : "Missionary"} lead`}</span></span>${step.review ? `<span class="badge badge-review">Qualified review</span>` : ""}<span class="chevron" aria-hidden="true">⌄</span></summary>
     <div class="step-details"><p class="step-prompt">${step.prompt}</p><div class="step-fields">
       <label class="field"><span>Status</span><select class="select" data-step-id="${step.id}" data-step-field="status">${Object.entries(statusNames).map(([value, text]) => `<option value="${value}" ${saved.status === value ? "selected" : ""}>${text}</option>`).join("")}</select></label>
+      <label class="field"><span>Lead side</span><select class="select" data-step-id="${step.id}" data-step-field="lead"><option value="church" ${saved.lead === "church" ? "selected" : ""}>Church</option><option value="missionary" ${saved.lead === "missionary" ? "selected" : ""}>Missionary</option><option value="together" ${saved.lead === "together" ? "selected" : ""}>Together</option></select></label>
       <label class="field"><span>Owner</span><input class="input" data-step-id="${step.id}" data-step-field="owner" value="${esc(saved.owner)}" placeholder="Person or team" /></label>
       <label class="field field-wide"><span>Next action</span><input class="input" data-step-id="${step.id}" data-step-field="next" value="${esc(saved.next)}" placeholder="What happens next, and by when?" /></label>
       <label class="field field-wide"><span>Decision / discussion notes</span><textarea class="textarea" rows="3" data-step-id="${step.id}" data-step-field="notes" placeholder="Record the decision, evidence, unresolved questions, or advice to seek.">${esc(saved.notes)}</textarea></label>
-    </div></div>
+    </div>${missionary.update || missionary.request ? `<div class="missionary-perspective"><strong>From the missionary view</strong>${missionary.update ? `<p><span>Update</span>${esc(missionary.update)}</p>` : ""}${missionary.request ? `<p><span>Question or support needed</span>${esc(missionary.request)}</p>` : ""}</div>` : ""}</div>
   </details>`;
 }
 
@@ -335,6 +380,58 @@ function renderPlan() {
     <div class="alert"><span aria-hidden="true">✦</span><div><strong>Make review visible</strong><p>Steps marked “Qualified review” call for current legal, tax, travel, or other specialist input. Mark them complete only after your church has recorded its own decision.</p></div></div>
     <div class="roadmap">${phases.map((phase) => `<section class="phase-section" id="phase-${phase.id}"><div class="phase-heading"><span class="phase-number">${phase.number}</span><div><h2>${phase.title}</h2><p>${phase.description}</p></div><span class="phase-count">${phase.steps.filter((step) => getStep(step.id).status === "done").length}/${phase.steps.length} complete</span></div><div class="step-list">${phase.steps.map((step, index) => renderStep(step, index + 1)).join("")}</div></section>`).join("")}</div>
     <div class="footer-note">This roadmap is a planning aid for U.S. churches. It does not determine tax, employment, immigration, or legal requirements for a particular church or destination.</div>
+  </div>`;
+}
+
+function renderMissionaryHome() {
+  const mine = missionarySteps();
+  const open = mine.filter((step) => getStep(step.id).status !== "done");
+  const requests = missionaryRequests();
+  const name = state.profile.missionary ? esc(state.profile.missionary) : "your missionary";
+  const destination = state.profile.destination ? esc(state.profile.destination) : "Destination to be decided";
+  const decisions = ["authority", "money", "approval"].map((id) => stepById[id]);
+  const statusNames = { "not-started": "Not started", "in-progress": "In progress", "needs-review": "Needs review", done: "Complete" };
+  return `<div class="page">
+    <section class="hero missionary-hero"><div class="hero-copy"><div class="eyebrow hero-eyebrow">THE MISSIONARY SIDE</div><h1>Prepare well.<br><em>Stay connected.</em></h1><p>A focused view for ${name} to prepare for ${destination}, share field information, and name what support is needed from the church.</p><div class="hero-actions">${button("Open my work <span aria-hidden=\"true\">→</span>", "preparation", true)}${button("Review field budget", "budget")}</div></div><div class="hero-art" aria-hidden="true"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="hero-star">✦</div><div class="hero-art-label">A shared purpose<br>with clear roles</div></div></section>
+    <section class="stats-grid" aria-label="Missionary plan at a glance">
+      <div class="stat-card"><div class="stat-top"><span class="stat-label">MY OPEN STEPS</span><span class="stat-symbol">◫</span></div><div class="stat-value">${open.length}<span> / ${mine.length}</span></div><small>led by you or together</small></div>
+      <div class="stat-card"><div class="stat-top"><span class="stat-label">MONTHLY FIELD ESTIMATE</span><span class="stat-symbol">◉</span></div><div class="stat-value">${money(budgetTotals().monthly)}</div><small>from the draft budget</small></div>
+      <div class="stat-card"><div class="stat-top"><span class="stat-label">QUESTIONS TO CHURCH</span><span class="stat-symbol">◇</span></div><div class="stat-value">${requests.length}</div><small>recorded in your work</small></div>
+    </section>
+    <section class="missionary-columns"><div class="card"><div class="section-header"><div><div class="eyebrow">YOUR NEXT WORK</div><h2>Keep these moving</h2></div><button class="link-button" type="button" data-go="preparation">View all →</button></div><div class="next-list">${open.length ? open.slice(0, 4).map((step, index) => `<button class="next-item" type="button" data-go="preparation"><span>${String(index + 1).padStart(2, "0")}</span><div><strong>${esc(step.title)}</strong><small>${getStep(step.id).lead === "together" ? "Led together" : "Missionary lead"}</small></div><span aria-hidden="true">↗</span></button>`).join("") : `<p>Every step on your side is marked complete. Review the plan with your church.</p>`}</div></div>
+      <div class="card"><div class="section-header"><div><div class="eyebrow">FROM THE CHURCH SIDE</div><h2>Church decisions</h2></div></div><div class="decision-list">${decisions.map((step) => { const saved = getStep(step.id); return `<div class="decision-item"><strong>${esc(step.title)}</strong><span class="badge ${saved.status === "needs-review" || step.review && saved.status !== "done" ? "badge-review" : ""}">${statusNames[saved.status] || "Not started"}</span>${saved.next ? `<p>Next action: ${esc(saved.next)}</p>` : ""}</div>`; }).join("")}</div></div></section>
+    <div class="info-banner"><span class="info-mark">i</span><div><strong>Two views of one local draft</strong><p>This is an interface preview. Switching views on this device does not create separate accounts, invite a missionary, or sync plans between devices.</p></div></div>
+  </div>`;
+}
+
+function renderMissionaryProfile() {
+  const p = state.profile;
+  return `<section class="profile-card card"><div class="section-header"><div><div class="eyebrow">YOUR CONTEXT</div><h2>Where are you preparing to go?</h2></div><span class="small-note">Saved as you leave each field</span></div><div class="form-grid">
+    <label class="field"><span>Missionary name</span><input class="input" data-profile="missionary" value="${esc(p.missionary)}" placeholder="Name or team" /></label>
+    <label class="field"><span>Destination</span><input class="input" data-profile="destination" value="${esc(p.destination)}" placeholder="City, region, country" /></label>
+    <label class="field"><span>Target departure</span><input class="input" type="date" data-profile="departure" value="${esc(p.departure)}" /></label>
+    <label class="field field-wide"><span>Purpose of the work</span><textarea class="textarea" data-profile="purpose" rows="2" placeholder="What work are you and the church discerning together?">${esc(p.purpose)}</textarea></label>
+  </div><p class="muted-copy">These details also appear in the church view of this browser draft.</p></section>`;
+}
+
+function renderMissionaryTask(step) {
+  const saved = getStep(step.id);
+  const update = getMissionaryUpdate(step.id);
+  const statusNames = { "not-started": "Not started", "in-progress": "In progress", "needs-review": "Needs review", done: "Complete" };
+  return `<article class="card missionary-task"><div class="missionary-task-heading"><div><span class="eyebrow">${saved.lead === "together" ? "LED TOGETHER" : "MISSIONARY LEAD"}</span><h3>${esc(step.title)}</h3></div><span class="badge ${saved.status === "needs-review" ? "badge-review" : ""}">${statusNames[saved.status] || "Not started"}</span></div><p>${esc(step.description)}</p><div class="church-context"><strong>From the church plan</strong><span>${saved.next ? `Next action: ${esc(saved.next)}` : "No next action recorded yet."}</span></div><div class="missionary-fields">
+    <label class="field"><span>Your update</span><textarea class="textarea" rows="3" data-missionary-step-id="${step.id}" data-missionary-field="update" placeholder="What have you learned or completed?">${esc(update.update)}</textarea></label>
+    <label class="field"><span>Question or support needed from the church</span><textarea class="textarea" rows="2" data-missionary-step-id="${step.id}" data-missionary-field="request" placeholder="What decision, contact, or help would move this forward?">${esc(update.request)}</textarea></label>
+  </div></article>`;
+}
+
+function renderPreparation() {
+  const mine = missionarySteps();
+  const done = mine.filter((step) => getStep(step.id).status === "done").length;
+  return `<div class="page">
+    ${pageHeader("YOUR SIDE OF THE SENDING PLAN", "My work", "Record your field perspective and the questions you need the church to answer. The church view sets the step status and lead side.", `<div class="header-progress"><strong>${done} of ${mine.length}</strong><span>steps complete</span>${progressBar(done, mine.length)}</div>`)}
+    ${renderMissionaryProfile()}
+    <section><div class="section-header"><div><div class="eyebrow">MISSIONARY & JOINT STEPS</div><h2>Your updates and requests</h2></div><span class="small-note">Saved as you leave each field</span></div><div class="missionary-task-list">${mine.length ? mine.map(renderMissionaryTask).join("") : `<div class="empty-state"><h3>No steps assigned yet</h3><p>In the church view, set a step's lead side to Missionary or Together.</p></div>`}</div></section>
+    <div class="footer-note">This preview keeps your updates in the same browser draft. It does not send them to another person or device.</div>
   </div>`;
 }
 
@@ -355,18 +452,18 @@ function renderBudget() {
   const support = Math.max(0, Number(state.monthlySupport) || 0);
   const unverified = state.budget.filter((item) => Number(item.amount) > 0 && (!String(item.source || "").trim() || !item.checkedOn)).length;
   return `<div class="page">
-    ${pageHeader("FIELD BUDGET", "Build from real numbers", "Enter your own estimates and keep a source and date beside each one. No location cost is prefilled as fact.")}
+    ${pageHeader("FIELD BUDGET", "Build from real numbers", currentRole === "church" ? "Enter your own estimates and keep a source and date beside each one. No location cost is prefilled as fact." : "Add field estimates and where they came from so your church can review them with you.")}
     <div class="info-banner"><span class="info-mark">i</span><div><strong>Budget for a decision, not a promise</strong><p>These figures are planning inputs. Confirm local prices, church policy, insurance, taxes, and transfer costs with the right people before committing support.</p></div></div>
     <section class="budget-summary">
       <div class="summary-card summary-primary"><span>ESTIMATED MONTHLY COST</span><strong id="monthly-total">${money(totals.monthly)}</strong><small id="annual-total">${money(totals.monthly * 12)} estimated annually</small></div>
       <div class="summary-card"><span>ONE-TIME SETUP</span><strong id="setup-total">${money(totals.once)}</strong><small>travel, setup, and other initial costs</small></div>
-      <div class="summary-card"><span>MONTHLY GAP</span><strong id="gap-total">${money(Math.max(0, totals.monthly - support))}</strong><small>cost minus support entered below</small></div>
+      <div class="summary-card"><span>MONTHLY GAP</span><strong id="gap-total">${money(Math.max(0, totals.monthly - support))}</strong><small>cost minus church support estimate</small></div>
     </section>
     <section class="card budget-card"><div class="section-header"><div><div class="eyebrow">YOUR ESTIMATES</div><h2>Budget lines</h2></div><span class="badge ${unverified ? "badge-review" : ""}" id="unverified-count">${unverified} need sources</span></div>
       <div class="budget-table"><div class="budget-table-head"><span>EXPENSE</span><span>AMOUNT</span><span>FREQUENCY</span><span>SOURCE / QUOTE</span><span>CHECKED ON</span><span></span></div>${state.budget.map(renderBudgetRow).join("")}</div>
       <form class="add-form" id="budget-add-form"><div class="field"><label for="new-budget-label">Add an expense</label><input class="input" id="new-budget-label" name="label" required placeholder="e.g. Language training" /></div><button class="secondary-button" type="submit">+ Add line</button></form>
     </section>
-    <section class="card support-card"><div><div class="eyebrow">SUPPORT PLANNING</div><h2>Monthly support recorded</h2><p>Enter the monthly amount the church currently expects to have available. This is a planning figure, not a donation or account balance.</p></div><label class="field"><span>Amount (${esc(state.currency)})</span><input class="input" type="number" min="0" step="0.01" data-support value="${esc(state.monthlySupport)}" /></label><label class="field"><span>Currency</span><select class="select" data-currency>${["USD", "EUR", "GBP", "JPY"].map((value) => `<option value="${value}" ${state.currency === value ? "selected" : ""}>${value}</option>`).join("")}</select></label></section>
+    ${currentRole === "church" ? `<section class="card support-card"><div><div class="eyebrow">SUPPORT PLANNING</div><h2>Monthly support recorded</h2><p>Enter the monthly amount the church currently expects to have available. This is a planning figure, not a donation or account balance.</p></div><label class="field"><span>Amount (${esc(state.currency)})</span><input class="input" type="number" min="0" step="0.01" data-support value="${esc(state.monthlySupport)}" /></label><label class="field"><span>Currency</span><select class="select" data-currency>${["USD", "EUR", "GBP", "JPY"].map((value) => `<option value="${value}" ${state.currency === value ? "selected" : ""}>${value}</option>`).join("")}</select></label></section>` : `<section class="card support-readonly"><div><div class="eyebrow">FROM THE CHURCH SIDE</div><h2>Monthly support recorded</h2><p>The church has entered <strong>${money(support)}</strong> as a planning figure. Review the gap together; this is not a donation or account balance.</p></div></section>`}
     <div class="footer-note">The app does not process gifts, issue tax receipts, hold funds, or calculate payroll. Download your plan to keep a backup of this browser-only draft.</div>
   </div>`;
 }
@@ -417,16 +514,29 @@ function renderResearch() {
   </div>`;
 }
 
-const renderers = { overview: renderOverview, plan: renderPlan, budget: renderBudget, stewardship: renderStewardship, research: renderResearch };
-const labels = { overview: "Overview", plan: "Sending plan", budget: "Field budget", stewardship: "Stewardship", research: "Research notes" };
+const renderers = { overview: renderOverview, plan: renderPlan, missionary: renderMissionaryHome, preparation: renderPreparation, budget: renderBudget, stewardship: renderStewardship, research: renderResearch };
+const labels = { overview: "Church home", plan: "Sending plan", missionary: "Missionary home", preparation: "My work", budget: "Field budget", stewardship: "Stewardship", research: "Research notes" };
+
+function roleForView(view) {
+  if (["overview", "plan", "stewardship"].includes(view)) return "church";
+  if (["missionary", "preparation"].includes(view)) return "missionary";
+  return null;
+}
+
+function saveRole() {
+  try { localStorage.setItem(ROLE_KEY, currentRole); } catch { /* The draft still works without a saved view preference. */ }
+}
 
 function render() {
   document.querySelectorAll("[data-view]").forEach((button) => {
+    button.hidden = Boolean(button.dataset.roleNav && button.dataset.roleNav !== currentRole);
     const active = button.dataset.view === currentView;
     button.classList.toggle("active", active);
     if (active) button.setAttribute("aria-current", "page");
     else button.removeAttribute("aria-current");
   });
+  document.getElementById("role-switch").value = currentRole;
+  document.getElementById("workspace-label").textContent = `${currentRole.toUpperCase()} WORKSPACE`;
   document.getElementById("nav-progress").textContent = `${counts().done}/${allSteps.length}`;
   document.getElementById("page-name").textContent = labels[currentView];
   root.innerHTML = renderers[currentView]();
@@ -435,6 +545,8 @@ function render() {
 
 function navigate(view) {
   if (!renderers[view]) return;
+  const role = roleForView(view);
+  if (role) { currentRole = role; saveRole(); }
   currentView = view;
   history.replaceState(null, "", `#${view}`);
   render();
@@ -443,6 +555,12 @@ function navigate(view) {
   document.getElementById("menu-button").setAttribute("aria-expanded", "false");
   root.focus({ preventScroll: true });
 }
+
+document.getElementById("role-switch").addEventListener("change", (event) => {
+  currentRole = event.target.value === "missionary" ? "missionary" : "church";
+  saveRole();
+  navigate(currentRole === "church" ? "overview" : "missionary");
+});
 
 document.addEventListener("click", (event) => {
   const navigation = event.target.closest("[data-view], [data-go]");
@@ -462,6 +580,11 @@ document.addEventListener("click", (event) => {
 root.addEventListener("change", (event) => {
   const field = event.target;
   if (field.dataset.profile) state.profile[field.dataset.profile] = field.value;
+  else if (field.dataset.missionaryField) {
+    const id = field.dataset.missionaryStepId;
+    if (!stepById[id] || !["update", "request"].includes(field.dataset.missionaryField)) return;
+    state.missionaryUpdates[id] = { ...getMissionaryUpdate(id), [field.dataset.missionaryField]: field.value };
+  }
   else if (field.dataset.stepField) {
     const id = field.dataset.stepId;
     if (!stepById[id]) return;
@@ -495,7 +618,7 @@ root.addEventListener("change", (event) => {
       }
     }
   }
-  if (field.dataset.stepField === "status" || field.hasAttribute("data-currency")) {
+  if (["status", "lead"].includes(field.dataset.stepField) || field.hasAttribute("data-currency")) {
     const openStep = field.closest("details")?.id;
     render();
     if (openStep) document.getElementById(openStep)?.setAttribute("open", "");
@@ -560,7 +683,12 @@ document.getElementById("import-file").addEventListener("change", async (event) 
 
 window.addEventListener("hashchange", () => {
   const view = location.hash.slice(1);
-  if (renderers[view] && view !== currentView) { currentView = view; render(); }
+  if (renderers[view] && view !== currentView) {
+    currentView = view;
+    const role = roleForView(view);
+    if (role) { currentRole = role; saveRole(); }
+    render();
+  }
 });
 
 render();

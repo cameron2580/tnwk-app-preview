@@ -23,16 +23,19 @@
           </div>
         </div>
 
-        <div class="workspace-label">YOUR WORKSPACE</div>
+        <div class="workspace-label" id="workspace-label">CHURCH WORKSPACE</div>
         <nav class="side-nav" aria-label="Sections">
-          <button class="nav-link" type="button" data-view="overview"><span class="nav-icon">⌂</span> Overview</button>
-          <button class="nav-link" type="button" data-view="plan"><span class="nav-icon">◫</span> Sending plan <span class="nav-badge" id="nav-progress">0/12</span></button>
+          <button class="nav-link" type="button" data-view="overview" data-role-nav="church"><span class="nav-icon">⌂</span> Church home</button>
+          <button class="nav-link" type="button" data-view="plan" data-role-nav="church"><span class="nav-icon">◫</span> Sending plan <span class="nav-badge" id="nav-progress">0/12</span></button>
+          <button class="nav-link" type="button" data-view="missionary" data-role-nav="missionary" hidden><span class="nav-icon">⌂</span> Missionary home</button>
+          <button class="nav-link" type="button" data-view="preparation" data-role-nav="missionary" hidden><span class="nav-icon">◫</span> My work</button>
           <button class="nav-link" type="button" data-view="budget"><span class="nav-icon">◉</span> Field budget</button>
-          <button class="nav-link" type="button" data-view="stewardship"><span class="nav-icon">◇</span> Stewardship</button>
+          <button class="nav-link" type="button" data-view="stewardship" data-role-nav="church"><span class="nav-icon">◇</span> Stewardship</button>
           <button class="nav-link" type="button" data-view="research"><span class="nav-icon">⌕</span> Research notes</button>
         </nav>
 
         <div class="sidebar-bottom">
+          <p class="role-disclaimer">View preview: both sides use this browser draft. Switching views does not invite someone or control access.</p>
           <div class="local-notice"><span class="status-dot"></span><div><strong>Local draft</strong><small>Saved in this browser only</small></div></div>
           <button class="text-action" type="button" id="export-button">Download plan <span aria-hidden="true">↗</span></button>
           <button class="text-action" type="button" id="import-button">Import a plan <span aria-hidden="true">↗</span></button>
@@ -43,8 +46,8 @@
       <div class="content-shell">
         <header class="topbar">
           <button class="mobile-menu" type="button" id="menu-button" aria-label="Toggle menu" aria-expanded="false">☰</button>
-          <div class="breadcrumb">Workspace <span>/</span> <strong id="page-name">Overview</strong></div>
-          <div class="topbar-actions"><span class="prototype-pill">PLANNING PROTOTYPE</span><button class="topbar-link" type="button" id="print-button">Print page <span aria-hidden="true">↗</span></button></div>
+          <div class="breadcrumb"><span class="breadcrumb-prefix">Workspace <span>/</span></span><strong id="page-name">Church home</strong></div>
+          <div class="topbar-actions"><label class="role-control"><span>Preview as</span><select id="role-switch" aria-label="Preview interface"><option value="church">Church</option><option value="missionary">Missionary</option></select></label><span class="prototype-pill">PLANNING PROTOTYPE</span><button class="topbar-link" type="button" id="print-button">Print page <span aria-hidden="true">↗</span></button></div>
         </header>
         <main id="view-root" tabindex="-1"></main>
       </div>
