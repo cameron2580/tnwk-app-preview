@@ -387,12 +387,11 @@ function renderMissionaryHome() {
   const mine = missionarySteps();
   const open = mine.filter((step) => getStep(step.id).status !== "done");
   const requests = missionaryRequests();
-  const name = state.profile.missionary ? esc(state.profile.missionary) : "your missionary";
-  const destination = state.profile.destination ? esc(state.profile.destination) : "Destination to be decided";
+  const destination = state.profile.destination ? esc(state.profile.destination) : "the field";
   const decisions = ["authority", "money", "approval"].map((id) => stepById[id]);
   const statusNames = { "not-started": "Not started", "in-progress": "In progress", "needs-review": "Needs review", done: "Complete" };
   return `<div class="page">
-    <section class="hero missionary-hero"><div class="hero-copy"><div class="eyebrow hero-eyebrow">THE MISSIONARY SIDE</div><h1>Prepare well.<br><em>Stay connected.</em></h1><p>A focused view for ${name} to prepare for ${destination}, share field information, and name what support is needed from the church.</p><div class="hero-actions">${button("Open my work <span aria-hidden=\"true\">→</span>", "preparation", true)}${button("Review field budget", "budget")}</div></div><div class="hero-art" aria-hidden="true"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="hero-star">✦</div><div class="hero-art-label">A shared purpose<br>with clear roles</div></div></section>
+    <section class="hero missionary-hero"><div class="hero-copy"><div class="eyebrow hero-eyebrow">THE MISSIONARY SIDE</div><h1>Prepare well.<br><em>Stay connected.</em></h1><p>Use this space to prepare for ${destination}, share field information, and name what support you need from the church.</p><div class="hero-actions">${button("Open my work <span aria-hidden=\"true\">→</span>", "preparation", true)}${button("Review field budget", "budget")}</div></div><div class="hero-art" aria-hidden="true"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="hero-star">✦</div><div class="hero-art-label">A shared purpose<br>with clear roles</div></div></section>
     <section class="stats-grid" aria-label="Missionary plan at a glance">
       <div class="stat-card"><div class="stat-top"><span class="stat-label">MY OPEN STEPS</span><span class="stat-symbol">◫</span></div><div class="stat-value">${open.length}<span> / ${mine.length}</span></div><small>led by you or together</small></div>
       <div class="stat-card"><div class="stat-top"><span class="stat-label">MONTHLY FIELD ESTIMATE</span><span class="stat-symbol">◉</span></div><div class="stat-value">${money(budgetTotals().monthly)}</div><small>from the draft budget</small></div>
