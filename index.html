@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#14372f" />
+    <meta
+      name="description"
+      content="A planning workspace for churches sending and caring for missionaries directly."
+    />
+    <title>TNWK | Church-led sending</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="./app.js" defer></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Main navigation">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">T<span>✦</span></div>
+          <div>
+            <strong>TNWK</strong>
+            <small>Church-led sending</small>
+          </div>
+        </div>
+
+        <div class="workspace-label">YOUR WORKSPACE</div>
+        <nav class="side-nav" aria-label="Sections">
+          <button class="nav-link" type="button" data-view="overview"><span class="nav-icon">⌂</span> Overview</button>
+          <button class="nav-link" type="button" data-view="plan"><span class="nav-icon">◫</span> Sending plan <span class="nav-badge" id="nav-progress">0/12</span></button>
+          <button class="nav-link" type="button" data-view="budget"><span class="nav-icon">◉</span> Field budget</button>
+          <button class="nav-link" type="button" data-view="stewardship"><span class="nav-icon">◇</span> Stewardship</button>
+          <button class="nav-link" type="button" data-view="research"><span class="nav-icon">⌕</span> Research notes</button>
+        </nav>
+
+        <div class="sidebar-bottom">
+          <div class="local-notice"><span class="status-dot"></span><div><strong>Local draft</strong><small>Saved in this browser only</small></div></div>
+          <button class="text-action" type="button" id="export-button">Download plan <span aria-hidden="true">↗</span></button>
+          <button class="text-action" type="button" id="import-button">Import a plan <span aria-hidden="true">↗</span></button>
+          <input type="file" id="import-file" accept=".json,application/json" hidden />
+        </div>
+      </aside>
+
+      <div class="content-shell">
+        <header class="topbar">
+          <button class="mobile-menu" type="button" id="menu-button" aria-label="Toggle menu" aria-expanded="false">☰</button>
+          <div class="breadcrumb">Workspace <span>/</span> <strong id="page-name">Overview</strong></div>
+          <div class="topbar-actions"><span class="prototype-pill">PLANNING PROTOTYPE</span><button class="topbar-link" type="button" id="print-button">Print page <span aria-hidden="true">↗</span></button></div>
+        </header>
+        <main id="view-root" tabindex="-1"></main>
+      </div>
+    </div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>
